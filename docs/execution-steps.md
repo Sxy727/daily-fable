@@ -33,10 +33,10 @@
 | 用户注册 DeepSeek 并获取 API 密钥（一次性，按 tech-spec.md 5.1 指引） | ✅ |
 | 编写 scripts/generate.py（生成文章脚本） | ✅ |
 | 编写 .github/workflows/daily.yml（每天定时运行） | ✅ |
-| 用户注册 GitHub 账号（一次性，按 tech-spec.md 6.1 指引） | ⬜ |
-| 创建 GitHub 仓库并推送代码 | ⬜ |
-| 配置 DEEPSEEK_API_KEY 到 GitHub Secrets（按 tech-spec.md 6.3 指引） | ⬜ |
-| 手动触发首次生成并验证文章入库 | ⬜ |
+| 用户注册 GitHub 账号（一次性，按 tech-spec.md 6.1 指引） | ✅ |
+| 创建 GitHub 仓库并推送代码 | ✅ |
+| 配置 DEEPSEEK_API_KEY 到 GitHub Secrets（按 tech-spec.md 6.3 指引） | ✅ |
+| 手动触发首次生成并验证文章入库 | ✅ |
 | 观察定时任务连续 3 天稳定运行 | ⬜ |
 
 **完成标准**：每天文章自动生成入库，无需人工干预。
