@@ -1,0 +1,9 @@
+# Python（阶段 2 生成脚本）
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# 系统文件
+.DS_Store
+Thumbs.db

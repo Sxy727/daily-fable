@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>每日寓言</title>
+  <style>
+    /* ========== 设计规范（对照 docs/design-spec.md） ========== */
+    :root {
+      --bg: #F7F4EE;        /* 米白宣纸色 */
+      --text: #2F2B26;      /* 深墨色 */
+      --muted: #8B8578;     /* 次要文字 */
+      --accent: #A64B2A;    /* 赭红点缀（每屏不超过 2 处） */
+      --line: #E5DFD3;      /* 分隔线 */
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .page { max-width: 560px; margin: 0 auto; padding: 56px 24px 64px; }
+
+    /* ---------- 顶部：回到今天按钮 + 日期 ---------- */
+    .back-btn {
+      display: block; margin: 0 auto 16px; padding: 6px 16px;
+      background: none; border: 1px solid var(--line); border-radius: 999px;
+      color: var(--muted); font-size: 13px; letter-spacing: 1px; cursor: pointer;
+    }
+    .back-btn.hidden { display: none; }
+    .date {
+      text-align: center; font-size: 13px; letter-spacing: 2px; color: var(--muted);
+    }
+    .date-divider {
+      width: 36px; height: 1px; background: var(--accent); margin: 14px auto 0;
+    }
+
+    /* ---------- 标题与标签 ---------- */
+    h1.title {
+      font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+      font-size: 26px; font-weight: 600; text-align: center; margin-top: 28px;
+    }
+    .tag {
+      text-align: center; font-size: 12px; color: var(--muted);
+      letter-spacing: 1px; margin-top: 10px;
+    }
+
+    /* ---------- 正文 ---------- */
+    .story p, .explain p {
+      font-size: 16px; line-height: 1.9; text-indent: 2em; margin-top: 24px;
+    }
+    .reveal-divider {
+      text-align: center; color: var(--muted); letter-spacing: 6px;
+      font-size: 13px; margin: 40px 0 32px;
+    }
+    .reveal {
+      font-family: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+      text-align: center; font-size: 21px; font-weight: 600;
+    }
+    .explain { margin-top: 28px; }
+    .meta-head {
+      text-align: center; font-size: 13px; letter-spacing: 3px;
+      color: var(--muted); margin: 40px 0 20px;
+    }
+    .meta-item { font-size: 15px; line-height: 1.9; margin-top: 14px; }
+    .meta-item .term { font-weight: 600; }
+
+    /* ---------- 底部：历史文章 ---------- */
+    .history-divider {
+      height: 1px; background: var(--line); margin: 48px 0 32px;
+    }
+    .history-head {
+      text-align: center; font-size: 13px; letter-spacing: 3px; color: var(--muted);
+    }
+    .history-list { list-style: none; margin-top: 8px; }
+    .history-item {
+      width: 100%; display: flex; align-items: baseline; gap: 12px;
+      padding: 14px 0; background: none; border: none;
+      border-bottom: 1px solid var(--line);
+      font-family: inherit; font-size: 15px; color: var(--text);
+      text-align: left; cursor: pointer;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .hi-date { color: var(--muted); flex-shrink: 0; }
+
+    .footer {
+      text-align: center; font-size: 12px; color: var(--muted);
+      letter-spacing: 2px; margin-top: 48px;
+    }
+
+    /* ---------- 过渡：内容切换 200ms 淡入 ---------- */
+    #content { transition: opacity 0.2s; }
+    #content.fading { opacity: 0; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <button id="backBtn" class="back-btn hidden">← 回到今天</button>
+    <div class="date" id="dateText"></div>
+    <div class="date-divider"></div>
+
+    <div id="content">
+      <h1 class="title" id="title"></h1>
+      <div class="tag" id="tag"></div>
+      <div class="story" id="story"></div>
+      <div class="reveal-divider">─ ─ ─ · · · ─ ─ ─</div>
+      <div class="reveal" id="reveal"></div>
+      <div class="explain" id="explain"></div>
+      <div class="meta-head">故事里的隐喻</div>
+      <div id="metaphors"></div>
+    </div>
+
+    <div class="history-divider"></div>
+    <div class="history-head">历史文章</div>
+    <ul class="history-list" id="historyList"></ul>
+
+    <div class="footer">每日寓言 · 每天一个概念</div>
+  </div>
+
+  <script>
+    // ========== 示例数据（阶段 1 内置；阶段 2 起改为读取 content/ 目录） ==========
+    const SAMPLES = {
+      // 今天的文章（打开页面时展示，日期取真实当天）
+      today: {
+        field: "物理学", concept: "熵", title: "沙堡与海",
+        story: [
+          "海边住着一个喜欢造沙堡的孩子。每天清晨，他趁着潮水退去，用最细的沙、最稳的手，筑起一座城堡：城墙、塔楼，甚至还有一道能滴水的小护城河。路过的人都赞叹，这座沙堡比石头的还精致。",
+          "可每天傍晚，潮水回来，城堡就慢慢塌了。孩子很伤心，问常在礁石上坐着的渔夫：\"为什么我做得越精细，它反而越留不住？\"",
+          "渔夫指着沙滩说：\"孩子，你看这一整片沙滩——一把沙随手撒下去，它落成什么样子都可以；可要让它恰好摆成一座城堡，只有寥寥几种办法。塌掉不是潮水欺负你的城堡，而是'散开'本来就是沙子的天性。你的城堡，是在用你一天的力气，替沙子在无数种散法里，勉强维持那一种聚法。\"",
+          "孩子想了很久。第二天，他还是去筑沙堡——只是这一次，他看着潮水把它带走时，不再难过了。他知道潮水没有做错什么，它只是在做一件注定的事。"
+        ],
+        explanation: [
+          "熵，是物理学里衡量\"混乱程度\"的量。热力学第二定律说：一个封闭系统的熵只会增加，不会减少——世界天然地朝着更混乱、更均匀的方向走。一杯热水会自己凉下来，打碎的杯子不会自己拼回去。不是谁在使坏，而是\"有序\"只是无数种可能里稀少的几种，\"无序\"才是绝大多数。要维持有序，就必须持续付出能量。"
+        ],
+        metaphors: [
+          ["沙堡", "低熵的有序结构：城墙、塔楼各就各位，是一种概率上很稀有的排列。"],
+          ["沙滩上散落的沙", "高熵的无序状态：沙子怎么散都行，可能的方式多到数不清。"],
+          ["潮水", "系统的自然演化：封闭系统里熵只会增加，城堡塌回沙滩是必然。"],
+          ["孩子每天的筑造", "维持有序需要持续投入能量；一旦停止，系统就滑回高熵。"],
+          ["孩子不再难过", "理解了定律之后，对\"必然\"的释然。"],
+        ],
+      },
+      // 历史示例（按日期倒序；阶段 2 起由每日生成的真实文章替换）
+      history: [
+        {
+          date: "2026-08-27", field: "经济学", concept: "机会成本", title: "两条路",
+          story: [
+            "山村里有个少年，村口有两条路：一条通往山外的城，据说有最好的先生和最多的机会；另一条通向深山里，那里有他年迈的祖母和一座老茶园。",
+            "少年在路口站了三天三夜。有人劝他出山，有人劝他留下。最后他留了下来，照料茶园，陪祖母走完最后一程。多年后，茶园的茶卖到了城里，少年也成了远近闻名的茶师。",
+            "可夜深人静时，他偶尔还会想起那条没走的路。一位路过的商人听说了，笑着说：\"你哪里只是选了一条路？你如今拥有的一切，都是另一条路替你付的账。\"",
+            "少年恍然大悟：原来每一次选择，都悄悄标着两份价格。一份是你得到的，一份是你放弃的。账单上写着的，不只有脚下的路，还有那条永远不会走的路。"
+          ],
+          explanation: [
+            "机会成本，指你为了做一件事而放弃的其他选择中，价值最高的那一个。钱和时间一样，用了这里就不能用在那里。经济学提醒我们：选择真正的代价，不是付出去的钱，而是你本可以得到、却主动放弃的东西。"
+          ],
+          metaphors: [
+            ["村口的两条路", "互斥的选择：走了这条，就走不了那条。"],
+            ["茶园、茶师的成就", "选择带来的收益。"],
+            ["那条没走的路", "机会成本——被放弃的选择里最有价值的部分。"],
+            ["两份价格", "每个选择都同时有\"得到的账\"和\"放弃的账\"。"],
+          ],
+        },
+        {
+          date: "2026-08-26", field: "心理学", concept: "确认偏误", title: "预言家",
+          story: [
+            "有位老人自称会看天气。他预言\"下个集市日必有大雨\"，恰巧那天果然下雨，他便名声大噪。此后他每天预言，有人专门做了记录：他一年预言了三百多次，灵验的只有十几回。",
+            "可奇怪的是，村里人只记得那十几回。每次下雨，大家都说：\"看，又应验了！\"而没应验的日子，从没有人提起。",
+            "一个外乡来的教书先生摇摇头：\"不是他预言得准，是你们只数对的那几次。你们的心，早就选好了要相信的答案，眼睛不过是替心去找证据罢了。\""
+          ],
+          explanation: [
+            "确认偏误，指人倾向于寻找、记住、相信支持自己已有想法的证据，而忽略相反的。我们以为自己是在\"看事实做判断\"，其实常常是\"先有判断，再挑事实\"。"
+          ],
+          metaphors: [
+            ["老人的预言", "我们已有的想法和期待。"],
+            ["只记得应验的日子", "选择性注意：大脑自动挑出支持自己的证据。"],
+            ["全村人", "我们每个人——偏误人人都有，只是不自知。"],
+            ["教书先生", "觉察偏误的自我反思，是我们对抗它的唯一办法。"],
+          ],
+        },
+      ],
+    };
+
+    // ========== 工具函数 ==========
+    // 把日期格式化为「2026年8月28日 · 星期五」
+    function formatFullDate(d) {
+      const weekdays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+      return d.getFullYear() + "年" + (d.getMonth() + 1) + "月" + d.getDate() + "日"
+           + " · " + weekdays[d.getDay()];
+    }
+    // 把「2026-08-28」格式化为「8月28日」
+    function formatShortDate(s) {
+      const p = s.split("-");
+      return parseInt(p[1], 10) + "月" + parseInt(p[2], 10) + "日";
+    }
+
+    // ========== 渲染 ==========
+    const dateText = document.getElementById("dateText");
+    const content = document.getElementById("content");
+    const titleEl = document.getElementById("title");
+    const tagEl = document.getElementById("tag");
+    const storyEl = document.getElementById("story");
+    const revealEl = document.getElementById("reveal");
+    const explainEl = document.getElementById("explain");
+    const metaphorsEl = document.getElementById("metaphors");
+    const backBtn = document.getElementById("backBtn");
+
+    // 渲染一篇文章：article 为数据对象，dateStr 为顶部显示的日期
+    function render(article, dateStr) {
+      dateText.textContent = dateStr;
+      titleEl.textContent = article.title;
+      tagEl.textContent = article.field + " · " + article.concept;
+      storyEl.innerHTML = article.story.map(p => "<p>" + p + "</p>").join("");
+      revealEl.textContent = "这个寓言讲的概念 · " + article.concept;
+      explainEl.innerHTML = article.explanation.map(p => "<p>" + p + "</p>").join("");
+      metaphorsEl.innerHTML = article.metaphors.map(m =>
+        '<p class="meta-item"><span class="term">' + m[0] + "</span> → " + m[1] + "</p>"
+      ).join("");
+    }
+
+    // 切换文章：200ms 淡出 → 渲染 → 淡入 → 回到顶部
+    function switchTo(article, dateStr, isToday) {
+      content.classList.add("fading");
+      setTimeout(() => {
+        render(article, dateStr);
+        backBtn.classList.toggle("hidden", isToday);
+        content.classList.remove("fading");
+        window.scrollTo(0, 0);
+      }, 200);
+    }
+
+    // 初始展示：今天的文章（日期取设备当天）
+    const now = new Date();
+    switchTo(SAMPLES.today, formatFullDate(now), true);
+
+    // 渲染历史列表（按日期倒序）
+    const historyList = document.getElementById("historyList");
+    SAMPLES.history.forEach(article => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.className = "history-item";
+      btn.innerHTML = '<span class="hi-date">' + formatShortDate(article.date) + "</span>"
+                    + "<span>" + article.field + " · " + article.concept + "</span>";
+      btn.onclick = () => switchTo(article, formatFullDate(new Date(article.date)), false);
+      li.appendChild(btn);
+      historyList.appendChild(li);
+    });
+
+    // 「回到今天」按钮
+    backBtn.onclick = () => switchTo(SAMPLES.today, formatFullDate(now), true);
+  </script>
+</body>
+</html>
