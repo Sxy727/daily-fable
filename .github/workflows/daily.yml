@@ -8,7 +8,11 @@ on:
   schedule:
     # UTC 16:38 = 北京时间 00:38（避开整点，错峰运行）
     - cron: "38 16 * * *"
-  workflow_dispatch: {}   # 支持手动触发（用于测试和补跑）
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "指定日期（YYYY-MM-DD，留空则生成今天）"
+        required: false
 
 permissions:
   contents: write          # 允许把生成的文章提交回仓库
@@ -25,10 +29,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: 生成今日文章
+      - name: 生成文章（默认今天，可指定日期补跑）
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-        run: python scripts/generate.py
+        run: python scripts/generate.py ${{ github.event.inputs.date }}
 
       - name: 提交文章到仓库
         run: |

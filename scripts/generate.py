@@ -141,7 +141,12 @@ def main():
     if not api_key:
         sys.exit("错误：未找到环境变量 DEEPSEEK_API_KEY")
 
+    # 日期：默认今天；也可用命令行参数指定（补跑某天，格式 YYYY-MM-DD）
     date = today_str()
+    if len(sys.argv) > 1:
+        date = sys.argv[1]
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+            sys.exit("错误：日期格式应为 YYYY-MM-DD，例如 2026-08-27")
     article_path = os.path.join(CONTENT_DIR, date + ".md")
     if os.path.exists(article_path):
         print("今日文章已存在，跳过：", date)

@@ -72,14 +72,15 @@
     .meta-item { font-size: 15px; line-height: 1.9; margin-top: 14px; }
     .meta-item .term { font-weight: 600; }
 
-    /* ---------- 底部：历史文章 ---------- */
-    .history-divider {
-      height: 1px; background: var(--line); margin: 48px 0 32px;
-    }
-    .history-head {
-      text-align: center; font-size: 13px; letter-spacing: 3px; color: var(--muted);
+    /* ---------- 顶部：历史文章（折叠列表） ---------- */
+    .history-toggle {
+      display: block; margin: 20px auto 0; padding: 6px 16px;
+      background: none; border: 1px solid var(--line); border-radius: 999px;
+      color: var(--muted); font-size: 13px; letter-spacing: 3px; cursor: pointer;
+      font-family: inherit;
     }
     .history-list { list-style: none; margin-top: 8px; }
+    .history-list.hidden { display: none; }
     .history-item {
       width: 100%; display: flex; align-items: baseline; gap: 12px;
       padding: 14px 0; background: none; border: none;
@@ -106,6 +107,12 @@
     <div class="date" id="dateText"></div>
     <div class="date-divider"></div>
 
+    <!-- 历史文章：位于顶部，默认收起，点击展开 -->
+    <div class="history-block">
+      <button id="historyToggle" class="history-toggle">历史文章 <span id="toggleArrow">▾</span></button>
+      <ul class="history-list hidden" id="historyList"></ul>
+    </div>
+
     <div id="content">
       <h1 class="title" id="title"></h1>
       <div class="tag" id="tag"></div>
@@ -116,10 +123,6 @@
       <div class="meta-head">故事里的隐喻</div>
       <div id="metaphors"></div>
     </div>
-
-    <div class="history-divider"></div>
-    <div class="history-head">历史文章</div>
-    <ul class="history-list" id="historyList"></ul>
 
     <div class="footer">每日寓言 · 每天一个概念</div>
   </div>
@@ -273,6 +276,17 @@
     const metaphorsEl = document.getElementById("metaphors");
     const backBtn = document.getElementById("backBtn");
     const historyList = document.getElementById("historyList");
+    const historyToggle = document.getElementById("historyToggle");
+    const toggleArrow = document.getElementById("toggleArrow");
+
+    // 历史列表折叠开关（默认收起，点击展开/收起）
+    let historyOpen = false;
+    function setHistoryOpen(open) {
+      historyOpen = open;
+      historyList.classList.toggle("hidden", !open);
+      toggleArrow.textContent = open ? "▴" : "▾";
+    }
+    historyToggle.onclick = () => setHistoryOpen(!historyOpen);
 
     // 渲染一篇文章：article 为数据对象，dateStr 为顶部显示的日期
     function render(article, dateStr) {
@@ -321,6 +335,7 @@
         const article = SAMPLES.history.find(a => a.date === entry.date);
         if (article) switchTo(article, formatFullDate(dateOf(entry.date)), false);
       }
+      setHistoryOpen(false);   // 选完文章自动收起列表
     }
 
     // 渲染历史列表（按日期倒序）
