@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>每日寓言</title>
+  <!-- PWA：图标、主屏幕、离线缓存 -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <meta name="theme-color" content="#F7F4EE">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="每日寓言">
   <style>
     /* ========== 设计规范（对照 docs/design-spec.md） ========== */
     :root {
@@ -119,9 +125,28 @@
   </div>
 
   <script>
-    // ========== 示例数据（阶段 1 内置；阶段 2 起改为读取 content/ 目录） ==========
+    // ========== 工具函数 ==========
+    // 转义 HTML，防止文章内容里的特殊字符破坏页面
+    function esc(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+                     .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    // 把日期格式化为「2026年8月28日 · 星期五」
+    function formatFullDate(d) {
+      const weekdays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+      return d.getFullYear() + "年" + (d.getMonth() + 1) + "月" + d.getDate() + "日"
+           + " · " + weekdays[d.getDay()];
+    }
+    // 把「2026-08-28」格式化为「8月28日」
+    function formatShortDate(s) {
+      const p = s.split("-");
+      return parseInt(p[1], 10) + "月" + parseInt(p[2], 10) + "日";
+    }
+    // 把「2026-08-28」转为本地时区的 Date 对象（避免被当成 UTC）
+    function dateOf(s) { return new Date(s.replace(/-/g, "/")); }
+
+    // ========== 示例数据（本地打开文件时的兜底；部署后优先读真实文章） ==========
     const SAMPLES = {
-      // 今天的文章（打开页面时展示，日期取真实当天）
       today: {
         field: "物理学", concept: "熵", title: "沙堡与海",
         story: [
@@ -141,7 +166,6 @@
           ["孩子不再难过", "理解了定律之后，对\"必然\"的释然。"],
         ],
       },
-      // 历史示例（按日期倒序；阶段 2 起由每日生成的真实文章替换）
       history: [
         {
           date: "2026-08-27", field: "经济学", concept: "机会成本", title: "两条路",
@@ -181,17 +205,58 @@
       ],
     };
 
-    // ========== 工具函数 ==========
-    // 把日期格式化为「2026年8月28日 · 星期五」
-    function formatFullDate(d) {
-      const weekdays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-      return d.getFullYear() + "年" + (d.getMonth() + 1) + "月" + d.getDate() + "日"
-           + " · " + weekdays[d.getDay()];
+    // ========== 真实文章加载（部署后生效） ==========
+    let realIndex = null;    // 仓库里的文章索引（部署后）
+    const mdCache = {};      // 已解析文章的内存缓存
+
+    // 把 content/*.md 的 Markdown 解析成页面用的文章对象
+    function parseArticle(md) {
+      const article = { field: "", concept: "", title: "", story: [], explanation: [], metaphors: [] };
+      const fm = md.match(/^---\n([\s\S]*?)\n---\n/);
+      if (fm) {
+        fm[1].split("\n").forEach(line => {
+          const i = line.indexOf(":");
+          if (i <= 0) return;
+          const k = line.slice(0, i).trim(), v = line.slice(i + 1).trim();
+          if (k === "field") article.field = v;
+          if (k === "concept") article.concept = v;
+          if (k === "title") article.title = v;
+        });
+      }
+      let section = "story";
+      md.replace(/^---\n[\s\S]*?\n---\n/, "").trim().split("\n").forEach(line => {
+        const h = line.match(/^## (.+)$/);
+        if (h) {
+          if (h[1].includes("故事")) section = "story";
+          else if (h[1].includes("概念解释")) section = "explanation";
+          else if (h[1].includes("隐喻")) section = "metaphors";
+          return;
+        }
+        const t = line.trim();
+        if (!t) return;
+        if (section === "metaphors" && t.startsWith("- ")) {
+          const i = t.slice(2).indexOf("：");   // 隐喻格式：- 元素：含义
+          if (i > 0) article.metaphors.push([t.slice(2, i + 2).trim(), t.slice(i + 4).trim()]);
+        } else if (section === "story") {
+          article.story.push(t);
+        } else if (section === "explanation") {
+          article.explanation.push(t);
+        }
+      });
+      return article;
     }
-    // 把「2026-08-28」格式化为「8月28日」
-    function formatShortDate(s) {
-      const p = s.split("-");
-      return parseInt(p[1], 10) + "月" + parseInt(p[2], 10) + "日";
+
+    // 尝试从仓库加载真实文章；失败返回 null（本地打开时就是这种情况）
+    async function loadReal() {
+      const res = await fetch("content/index.json", { cache: "no-cache" });
+      if (!res.ok) throw new Error("索引加载失败");
+      const index = await res.json();
+      if (!Array.isArray(index) || index.length === 0) throw new Error("索引为空");
+      const latest = index[0];
+      const mdRes = await fetch("content/" + latest.date + ".md", { cache: "no-cache" });
+      const today = parseArticle(await mdRes.text());
+      today.date = latest.date;
+      return { today, index };
     }
 
     // ========== 渲染 ==========
@@ -204,17 +269,18 @@
     const explainEl = document.getElementById("explain");
     const metaphorsEl = document.getElementById("metaphors");
     const backBtn = document.getElementById("backBtn");
+    const historyList = document.getElementById("historyList");
 
     // 渲染一篇文章：article 为数据对象，dateStr 为顶部显示的日期
     function render(article, dateStr) {
       dateText.textContent = dateStr;
       titleEl.textContent = article.title;
       tagEl.textContent = article.field + " · " + article.concept;
-      storyEl.innerHTML = article.story.map(p => "<p>" + p + "</p>").join("");
+      storyEl.innerHTML = article.story.map(p => "<p>" + esc(p) + "</p>").join("");
       revealEl.textContent = "这个寓言讲的概念 · " + article.concept;
-      explainEl.innerHTML = article.explanation.map(p => "<p>" + p + "</p>").join("");
+      explainEl.innerHTML = article.explanation.map(p => "<p>" + esc(p) + "</p>").join("");
       metaphorsEl.innerHTML = article.metaphors.map(m =>
-        '<p class="meta-item"><span class="term">' + m[0] + "</span> → " + m[1] + "</p>"
+        '<p class="meta-item"><span class="term">' + esc(m[0]) + "</span> → " + esc(m[1]) + "</p>"
       ).join("");
     }
 
@@ -229,25 +295,66 @@
       }, 200);
     }
 
-    // 初始展示：今天的文章（日期取设备当天）
-    const now = new Date();
-    switchTo(SAMPLES.today, formatFullDate(now), true);
+    // 打开最新文章（部署后为真实最新一篇，本地为示例「今天」）
+    function backToLatest() {
+      if (realIndex) {
+        const latest = realIndex.today;
+        switchTo(latest, formatFullDate(dateOf(latest.date)), true);
+      } else {
+        switchTo(SAMPLES.today, formatFullDate(new Date()), true);
+      }
+    }
+
+    // 打开一篇历史文章
+    async function openHistory(entry) {
+      if (realIndex) {
+        if (!mdCache[entry.date]) {
+          const mdRes = await fetch("content/" + entry.date + ".md", { cache: "no-cache" });
+          mdCache[entry.date] = parseArticle(await mdRes.text());
+        }
+        switchTo(mdCache[entry.date], formatFullDate(dateOf(entry.date)), false);
+      } else {
+        const article = SAMPLES.history.find(a => a.date === entry.date);
+        if (article) switchTo(article, formatFullDate(dateOf(entry.date)), false);
+      }
+    }
 
     // 渲染历史列表（按日期倒序）
-    const historyList = document.getElementById("historyList");
-    SAMPLES.history.forEach(article => {
-      const li = document.createElement("li");
-      const btn = document.createElement("button");
-      btn.className = "history-item";
-      btn.innerHTML = '<span class="hi-date">' + formatShortDate(article.date) + "</span>"
-                    + "<span>" + article.field + " · " + article.concept + "</span>";
-      btn.onclick = () => switchTo(article, formatFullDate(new Date(article.date)), false);
-      li.appendChild(btn);
-      historyList.appendChild(li);
-    });
+    function renderHistory() {
+      historyList.innerHTML = "";
+      const items = realIndex
+        ? realIndex.index.slice(1)   // 第一项是正在展示的最新文章
+        : SAMPLES.history.map(a => ({ date: a.date, field: a.field, concept: a.concept }));
+      items.forEach(entry => {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.className = "history-item";
+        btn.innerHTML = '<span class="hi-date">' + formatShortDate(entry.date) + "</span>"
+                      + "<span>" + esc(entry.field) + " · " + esc(entry.concept) + "</span>";
+        btn.onclick = () => openHistory(entry);
+        li.appendChild(btn);
+        historyList.appendChild(li);
+      });
+    }
 
-    // 「回到今天」按钮
-    backBtn.onclick = () => switchTo(SAMPLES.today, formatFullDate(now), true);
+    // ========== 启动 ==========
+    (async function init() {
+      try {
+        const real = await loadReal();
+        if (real) realIndex = real;
+      } catch (e) {
+        console.log("未读取到在线文章，使用内置示例：", e.message);
+      }
+      renderHistory();
+      backToLatest();
+    })();
+
+    backBtn.onclick = backToLatest;
+
+    // 注册 Service Worker（仅在部署后的 http(s) 环境下生效，本地文件打开时自动跳过）
+    if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    }
   </script>
 </body>
 </html>
