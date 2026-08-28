@@ -35,16 +35,21 @@ d:\知识软件\
 ├─ CLAUDE.md                # 项目指引
 ├─ docs\                    # 标准文档
 ├─ devlog\                  # 开发日志
-├─ app\                     # 手机网页（阶段 1）
-│  └─ index.html            # 单页应用（含样式与脚本）
+├─ index.html               # 手机网页单页应用（阶段 1，部署根目录）
+├─ sw.js                    # Service Worker：离线缓存（阶段 3）
+├─ manifest.webmanifest     # PWA 配置（阶段 3）
+├─ icon-*.png               # PWA 图标（阶段 3）
 ├─ content\                 # 文章数据（阶段 2）
 │  ├─ index.json            # 全部文章索引
 │  └─ YYYY-MM-DD.md         # 每日文章
 ├─ scripts\                 # 生成脚本（阶段 2）
-│  └─ generate.py           # 调用 DeepSeek 生成当日文章
+│  ├─ generate.py           # 调用 DeepSeek 生成当日文章
+│  └─ make_icon.py          # 一次性图标生成脚本（阶段 3）
 └─ .github\workflows\       # 定时任务（阶段 2）
    └─ daily.yml
 ```
+
+> 说明：网页文件放在仓库根目录（而非 app/ 子目录），是因为 GitHub Pages 从根目录发布，这样页面才能直接读取同级的 content/ 文章数据。
 
 ## 4. 数据格式
 
