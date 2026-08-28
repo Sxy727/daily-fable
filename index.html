@@ -254,6 +254,7 @@
       if (!Array.isArray(index) || index.length === 0) throw new Error("索引为空");
       const latest = index[0];
       const mdRes = await fetch("content/" + latest.date + ".md", { cache: "no-cache" });
+      if (!mdRes.ok) throw new Error("文章加载失败：" + mdRes.status);
       const today = parseArticle(await mdRes.text());
       today.date = latest.date;
       return { today, index };
@@ -310,6 +311,7 @@
       if (realIndex) {
         if (!mdCache[entry.date]) {
           const mdRes = await fetch("content/" + entry.date + ".md", { cache: "no-cache" });
+          if (!mdRes.ok) throw new Error("文章加载失败：" + mdRes.status);
           mdCache[entry.date] = parseArticle(await mdRes.text());
         }
         switchTo(mdCache[entry.date], formatFullDate(dateOf(entry.date)), false);
