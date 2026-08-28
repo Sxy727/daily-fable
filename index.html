@@ -212,6 +212,7 @@
     // 把 content/*.md 的 Markdown 解析成页面用的文章对象
     function parseArticle(md) {
       const article = { field: "", concept: "", title: "", story: [], explanation: [], metaphors: [] };
+      md = md.replace(/\r\n/g, "\n");   // 兼容 Windows 换行符
       const fm = md.match(/^---\n([\s\S]*?)\n---\n/);
       if (fm) {
         fm[1].split("\n").forEach(line => {
@@ -234,9 +235,10 @@
         }
         const t = line.trim();
         if (!t) return;
+        if (t === "---" || t === "***") return;   // 跳过 Markdown 分隔线
         if (section === "metaphors" && t.startsWith("- ")) {
           const i = t.slice(2).indexOf("：");   // 隐喻格式：- 元素：含义
-          if (i > 0) article.metaphors.push([t.slice(2, i + 2).trim(), t.slice(i + 4).trim()]);
+          if (i > 0) article.metaphors.push([t.slice(2, i + 2).trim(), t.slice(i + 3).trim()]);
         } else if (section === "story") {
           article.story.push(t);
         } else if (section === "explanation") {
