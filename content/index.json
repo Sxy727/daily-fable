@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-08-31",
+    "field": "语言学",
+    "concept": "语义饱和（Semantic Satiation）",
+    "title": "石匠与回音谷"
+  },
+  {
     "date": "2026-08-30",
     "field": "计算机科学",
     "concept": "拜占庭将军问题（Byzantine Fault Tolerance）",
