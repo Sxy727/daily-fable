@@ -87,13 +87,44 @@ def pick_field(index):
     return random.choice(candidates or FIELDS)
 
 
-def call_api(api_key, field):
-    """调用 DeepSeek API，返回文章文本；失败时抛出异常由上层重试"""
+def normalize_concept(c):
+    """规范化概念名（去括号内容、去空白与分隔符），用于重复判断"""
+    c = re.sub(r"[（(].*?[)）]", "", c)
+    c = re.sub(r"[\s·\-—/、]", "", c)
+    return c.lower()
+
+
+def used_concepts(index):
+    """收集历史已用概念：原文列表（给 AI 看）+ 规范化集合（程序判断用）"""
+    raw = [i.get("concept", "") for i in index if i.get("concept")]
+    return raw, {normalize_concept(c) for c in raw}
+
+
+def is_duplicate_concept(candidate, used_norm):
+    """判断候选概念是否与历史重复（完全相同，或相互包含如 熵 与 熵增原理）"""
+    cand = normalize_concept(candidate)
+    if not cand:
+        return False
+    for u in used_norm:
+        if cand == u:
+            return True
+        if len(cand) >= 2 and len(u) >= 2 and (cand in u or u in cand):
+            return True
+    return False
+
+
+def call_api(api_key, field, used):
+    """调用 DeepSeek API，返回文章文本；used 为已用概念，要求 AI 避开；失败时抛出异常"""
+    user_prompt = BASE_PROMPT + "\n\n今天请从「" + field + "」领域选题。"
+    if used:
+        user_prompt += ("\n\n以下概念已经在过去的文章里讲过了，请务必选择一个新的、"
+                        "不同的概念，不要与它们重复或雷同：\n" + "、".join(used))
+    user_prompt += "\n\n" + OUTPUT_FORMAT
     messages = [
         {"role": "system",
          "content": "你是一位文笔优美的知识作家，擅长用寓言故事讲解深刻的概念。"},
         {"role": "user",
-         "content": BASE_PROMPT + "\n\n今天请从「" + field + "」领域选题。\n\n" + OUTPUT_FORMAT},
+         "content": user_prompt},
     ]
     payload = json.dumps({
         "model": MODEL,
@@ -152,18 +183,25 @@ def main():
         print("今日文章已存在，跳过：", date)
         return
 
-    field = pick_field(load_index())
-    print("今日领域：", field)
+    index = load_index()
+    field = pick_field(index)
+    used_raw, used_norm = used_concepts(index)
+    print("今日领域：", field, "| 已用概念数：", len(used_raw))
 
-    # 生成文章：失败或结构不完整则重试，最多 3 次
+    # 生成文章：失败、结构不完整或概念与历史重复则重试，最多 3 次
     text = None
     for attempt in range(3):
         try:
-            candidate = call_api(api_key, field)
-            if validate_article(candidate):
-                text = candidate
-                break
-            print("第 %d 次生成的结构不完整，重试" % (attempt + 1))
+            candidate = call_api(api_key, field, used_raw)
+            if not validate_article(candidate):
+                print("第 %d 次生成的结构不完整，重试" % (attempt + 1))
+                continue
+            concept = parse_frontmatter(candidate).get("concept", "")
+            if is_duplicate_concept(concept, used_norm):
+                print("第 %d 次生成的概念与历史重复（%s），重试" % (attempt + 1, concept))
+                continue
+            text = candidate
+            break
         except Exception as e:
             print("第 %d 次生成失败：%s" % (attempt + 1, e))
     if not text:
@@ -182,7 +220,6 @@ def main():
         "concept": meta.get("concept", ""),
         "title": meta.get("title", ""),
     }
-    index = load_index()
     index = [i for i in index if i.get("date") != date]  # 去重后插入
     index.insert(0, entry)
     index.sort(key=lambda x: x["date"], reverse=True)

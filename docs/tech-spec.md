@@ -88,11 +88,12 @@ concept: 熵
 ### 5.3 生成脚本逻辑（scripts/generate.py）
 1. 确定日期：默认今天，可用命令行参数指定（`python scripts/generate.py YYYY-MM-DD`，用于补跑某天）
 2. 从领域池随机选一个领域（避免与近 7 天重复）
-3. 组装提示词 = 原始提示词 + 今日领域
+3. 组装提示词 = 原始提示词 + 今日领域 + 全部历史已用概念清单（要求 AI 避开）
 4. 调用 API 获取文章
-5. 校验内容完整性（四段式齐全）→ 写入 content/YYYY-MM-DD.md
-6. 更新 content/index.json
-7. git commit + push
+5. 校验内容完整性（四段式齐全）
+6. 校验概念不重复：规范化比较（去括号/空白），完全相同或相互包含（如「熵」与「熵增原理」）判为重复 → 重复则重试（最多 3 次）
+7. 写入 content/YYYY-MM-DD.md，更新 content/index.json
+8. git commit + push
 
 ## 6. GitHub 准备（阶段 2 执行）
 
