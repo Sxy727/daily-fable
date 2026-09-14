@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-09-15",
+    "field": "计算机科学",
+    "concept": "CAP定理（Consistency, Availability, Partition Tolerance）",
+    "title": "三盏灯的岛屿"
+  },
+  {
     "date": "2026-09-14",
     "field": "经济学",
     "concept": "柠檬市场（The Market for Lemons）/ 逆向选择（Adverse Selection）",
