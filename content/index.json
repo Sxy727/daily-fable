@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-09-16",
+    "field": "语言学",
+    "concept": "言语行为理论（Speech Act Theory）",
+    "title": "守灯人的三种话"
+  },
+  {
     "date": "2026-09-15",
     "field": "计算机科学",
     "concept": "CAP定理（Consistency, Availability, Partition Tolerance）",
