@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-10-01",
+    "field": "计算机科学",
+    "concept": "引用计数与循环引用（Reference Counting & Reference Cycles）",
+    "title": "灯塔与锁链"
+  },
+  {
     "date": "2026-09-30",
     "field": "经济学",
     "concept": "双边市场（Two-Sided Markets）与交叉网络外部性（Cross-Side Network Externalities）",
