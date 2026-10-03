@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-10-04",
+    "field": "数学",
+    "concept": "蒙提霍尔问题（Monty Hall Problem）/ 条件概率与贝叶斯更新",
+    "title": "三扇门"
+  },
+  {
     "date": "2026-10-03",
     "field": "心理学",
     "concept": "基本归因错误（Fundamental Attribution Error）",
