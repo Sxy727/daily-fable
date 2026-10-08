@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-10-09",
+    "field": "计算机科学",
+    "concept": "缓存穿透（Cache Penetration）",
+    "title": "空谷回声"
+  },
+  {
     "date": "2026-10-08",
     "field": "经济学",
     "concept": "创造性破坏（Creative Destruction）",
