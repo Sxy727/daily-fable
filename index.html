@@ -72,15 +72,26 @@
     .meta-item { font-size: 15px; line-height: 1.9; margin-top: 14px; }
     .meta-item .term { font-weight: 600; }
 
-    /* ---------- 顶部：历史文章（折叠列表） ---------- */
+    /* ---------- 顶部：历史文章（近 5 天列表 + 按月查看） ---------- */
+    .history-buttons {
+      display: flex; justify-content: center; gap: 12px; margin-top: 20px;
+    }
     .history-toggle {
-      display: block; margin: 20px auto 0; padding: 6px 16px;
+      padding: 6px 16px;
       background: none; border: 1px solid var(--line); border-radius: 999px;
       color: var(--muted); font-size: 13px; letter-spacing: 3px; cursor: pointer;
       font-family: inherit;
     }
     .history-list { list-style: none; margin-top: 8px; }
     .history-list.hidden { display: none; }
+    /* 按月查看面板：先显示月份列表，点月份后显示该月文章 */
+    .month-panel { margin-top: 8px; }
+    .month-panel.hidden { display: none; }
+    .month-back {
+      display: block; margin: 14px auto 0; padding: 4px 14px;
+      background: none; border: none; color: var(--muted);
+      font-size: 13px; letter-spacing: 1px; cursor: pointer; font-family: inherit;
+    }
     .history-item {
       width: 100%; display: flex; align-items: baseline; gap: 12px;
       padding: 14px 0; background: none; border: none;
@@ -107,9 +118,13 @@
     <div class="date" id="dateText"></div>
     <div class="date-divider"></div>
 
-    <!-- 历史文章：位于顶部，默认收起，点击展开 -->
+    <!-- 历史文章：位于顶部。左侧「按月查看」展开月份索引，右侧「历史文章」展开最近 5 天列表 -->
     <div class="history-block">
-      <button id="historyToggle" class="history-toggle">历史文章 <span id="toggleArrow">▾</span></button>
+      <div class="history-buttons">
+        <button id="monthBtn" class="history-toggle">按月查看</button>
+        <button id="historyToggle" class="history-toggle">历史文章 <span id="toggleArrow">▾</span></button>
+      </div>
+      <div id="monthPanel" class="month-panel hidden"></div>
       <ul class="history-list hidden" id="historyList"></ul>
     </div>
 
@@ -278,15 +293,74 @@
     const historyList = document.getElementById("historyList");
     const historyToggle = document.getElementById("historyToggle");
     const toggleArrow = document.getElementById("toggleArrow");
+    const monthBtn = document.getElementById("monthBtn");
+    const monthPanel = document.getElementById("monthPanel");
 
-    // 历史列表折叠开关（默认收起，点击展开/收起）
+    // 历史列表折叠开关（默认收起，点击展开/收起）；与按月查看面板互斥
     let historyOpen = false;
     function setHistoryOpen(open) {
       historyOpen = open;
       historyList.classList.toggle("hidden", !open);
       toggleArrow.textContent = open ? "▴" : "▾";
+      if (open) setMonthOpen(false);
     }
     historyToggle.onclick = () => setHistoryOpen(!historyOpen);
+
+    // 按月查看面板：monthYear 为当前查看的月份（"YYYY-MM"），null 表示月份列表
+    let monthOpen = false;
+    let monthYear = null;
+    function setMonthOpen(open) {
+      monthOpen = open;
+      monthPanel.classList.toggle("hidden", !open);
+      if (open) {
+        setHistoryOpen(false);
+        monthYear = null;   // 每次打开先显示月份列表
+        renderMonthPanel();
+      }
+    }
+    monthBtn.onclick = () => setMonthOpen(!monthOpen);
+
+    // 全部文章条目（真实模式下含正在展示的最新一篇；示例模式为内置历史）
+    function allEntries() {
+      return realIndex
+        ? realIndex.index
+        : SAMPLES.history.map(a => ({ date: a.date, field: a.field, concept: a.concept }));
+    }
+
+    // 渲染按月查看面板：月份列表 → 点月份 → 该月全部文章 → 点文章跳转
+    function renderMonthPanel() {
+      monthPanel.innerHTML = "";
+      const entries = allEntries();
+      if (!monthYear) {
+        // 月份列表：按年月分组统计篇数，倒序显示
+        const months = {};
+        entries.forEach(e => { const m = e.date.slice(0, 7); months[m] = (months[m] || 0) + 1; });
+        Object.keys(months).sort().reverse().forEach(m => {
+          const p = m.split("-");
+          const btn = document.createElement("button");
+          btn.className = "history-item";
+          btn.innerHTML = '<span class="hi-date">' + parseInt(p[0], 10) + "年"
+                        + parseInt(p[1], 10) + '月</span><span>' + months[m] + " 篇</span>";
+          btn.onclick = () => { monthYear = m; renderMonthPanel(); };
+          monthPanel.appendChild(btn);
+        });
+      } else {
+        // 某月文章列表（倒序），顶部有返回月份列表的入口
+        const back = document.createElement("button");
+        back.className = "month-back";
+        back.textContent = "‹ 返回月份列表";
+        back.onclick = () => { monthYear = null; renderMonthPanel(); };
+        monthPanel.appendChild(back);
+        entries.filter(e => e.date.slice(0, 7) === monthYear).forEach(entry => {
+          const btn = document.createElement("button");
+          btn.className = "history-item";
+          btn.innerHTML = '<span class="hi-date">' + formatShortDate(entry.date) + "</span>"
+                        + "<span>" + esc(entry.field) + " · " + esc(entry.concept) + "</span>";
+          btn.onclick = () => openHistory(entry);
+          monthPanel.appendChild(btn);
+        });
+      }
+    }
 
     // 渲染一篇文章：article 为数据对象，dateStr 为顶部显示的日期
     function render(article, dateStr) {
@@ -324,25 +398,28 @@
 
     // 打开一篇历史文章
     async function openHistory(entry) {
+      // 点的是当前正在展示的最新文章时，回到今天（不显示「回到今天」按钮）
+      const isToday = realIndex && realIndex.today.date === entry.date;
       if (realIndex) {
         if (!mdCache[entry.date]) {
           const mdRes = await fetch("content/" + entry.date + ".md", { cache: "no-cache" });
           if (!mdRes.ok) throw new Error("文章加载失败：" + mdRes.status);
           mdCache[entry.date] = parseArticle(await mdRes.text());
         }
-        switchTo(mdCache[entry.date], formatFullDate(dateOf(entry.date)), false);
+        switchTo(mdCache[entry.date], formatFullDate(dateOf(entry.date)), isToday);
       } else {
         const article = SAMPLES.history.find(a => a.date === entry.date);
         if (article) switchTo(article, formatFullDate(dateOf(entry.date)), false);
       }
       setHistoryOpen(false);   // 选完文章自动收起列表
+      setMonthOpen(false);     // 收起按月查看面板
     }
 
-    // 渲染历史列表（按日期倒序）
+    // 渲染历史列表：只显示最近 5 天（不含正在展示的最新一篇）
     function renderHistory() {
       historyList.innerHTML = "";
       const items = realIndex
-        ? realIndex.index.slice(1)   // 第一项是正在展示的最新文章
+        ? realIndex.index.slice(1, 6)
         : SAMPLES.history.map(a => ({ date: a.date, field: a.field, concept: a.concept }));
       items.forEach(entry => {
         const li = document.createElement("li");
