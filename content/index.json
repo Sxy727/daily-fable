@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-10-18",
+    "field": "语言学",
+    "concept": "双重分节（Double Articulation）",
+    "title": "双刃织锦"
+  },
+  {
     "date": "2026-10-17",
     "field": "计算机科学",
     "concept": "布隆过滤器（Bloom Filter）",
