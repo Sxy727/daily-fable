@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-10-25",
+    "field": "计算机科学",
+    "concept": "写时复制（Copy-on-Write）",
+    "title": "图书馆的抄写员"
+  },
+  {
     "date": "2026-10-24",
     "field": "生物学",
     "concept": "亲子冲突（Parent-Offspring Conflict）",
