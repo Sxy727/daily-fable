@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-11-11",
+    "field": "物理学",
+    "concept": "阿哈罗诺夫-玻姆效应（Aharonov-Bohm Effect）",
+    "title": "看不见的河流"
+  },
+  {
     "date": "2026-11-10",
     "field": "计算机科学",
     "concept": "拜占庭容错（Byzantine Fault Tolerance）",
