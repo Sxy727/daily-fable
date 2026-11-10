@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-11-10",
+    "field": "计算机科学",
+    "concept": "拜占庭容错（Byzantine Fault Tolerance）",
+    "title": "雾港灯塔"
+  },
+  {
     "date": "2026-11-09",
     "field": "物理学",
     "concept": "约瑟夫森效应（Josephson Effect）",
