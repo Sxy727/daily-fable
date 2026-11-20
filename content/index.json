@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-11-21",
+    "field": "计算机科学",
+    "concept": "布谷鸟哈希（Cuckoo Hashing）",
+    "title": "布谷鸟客栈"
+  },
+  {
     "date": "2026-11-20",
     "field": "生物学",
     "concept": "竞争性抑制（Competitive Inhibition）",
